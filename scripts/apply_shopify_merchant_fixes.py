@@ -92,20 +92,14 @@ def die(msg: str, code: int = 1) -> None:
 
 
 def admin_graphql(query: str, variables: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-    if not TOKEN:
-        die(
-            "Missing SHOPIFY_ADMIN_TOKEN.\n"
-            "Create it in Shopify → Settings → Apps → Develop apps → Create app →\n"
-            "Admin API scopes: read_products, write_products → Install → reveal Admin API token.\n"
-            "Then: export SHOPIFY_ADMIN_TOKEN=shpat_xxx"
-        )
+    token = ensure_token()
     body = json.dumps({"query": query, "variables": variables or {}}).encode("utf-8")
     req = urllib.request.Request(
         f"https://{SHOP}/admin/api/{API_VERSION}/graphql.json",
         data=body,
         headers={
             "Content-Type": "application/json",
-            "X-Shopify-Access-Token": TOKEN,
+            "X-Shopify-Access-Token": token,
         },
         method="POST",
     )
