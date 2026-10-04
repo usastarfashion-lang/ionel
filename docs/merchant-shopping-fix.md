@@ -90,3 +90,37 @@ python3 scripts/validate_merchant_feed.py
 - Final customer price (including decoration)
 - `identifier_exists = no` when there is no real GTIN
 - Accurate availability and landing-page match
+
+## Update business identity on the website
+
+Legal name to use everywhere:
+
+`Ionel Niscoveanu trading as USASTARFASHION`
+
+Phone: `+44 7933 733089` · Email: `support@usastarfashion.com`  
+Address: `43 Castle Grange, Skelton-in-Cleveland, Saltburn-by-the-Sea, TS12 2DN, United Kingdom`
+
+### Allow the agent to update policies/pages
+
+In Dev Dashboard → **Cursor Merchant Fix** → scopes, add:
+
+- `write_legal_policies`
+- `read_legal_policies`
+- `write_content`
+- `read_content`
+- `write_themes` (optional, for footer)
+- `read_themes` (optional)
+
+Release/reinstall the app, then tell the agent. It will run:
+
+```bash
+python3 -u scripts/update_business_identity.py
+```
+
+### Manual fallback (Shopify admin)
+
+1. **Settings → Policies → Contact information** — paste `content/contact-information.html`
+2. Refund / Shipping / Privacy / Terms — keep content, ensure the legal name line appears once at the top
+3. **Settings → General** — phone `+447933733089`, owner Ionel Niscoveanu
+4. Merchant Center → Business information — same legal name/phone/email/address
+5. Request review
