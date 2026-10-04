@@ -1,0 +1,98 @@
+{% comment %}
+  USASTARFASHION — Merchant / Shopping-friendly Product JSON-LD
+
+  Install:
+  1. Online Store → Themes → Edit code → Snippets → Add a new snippet
+  2. Name it: usaf-merchant-product-schema
+  3. Paste this file
+  4. In snippets/meta-tags.liquid (or layout/theme.liquid), inside <head>, add:
+       {% if template.name == 'product' %}
+         {% render 'usaf-merchant-product-schema' %}
+       {% endif %}
+
+  What this fixes for Google Shopping / rich results:
+  - Emits one Offer per variant (not only the selected variant)
+  - Adds sku / mpn from variant SKU
+  - Adds gtin when barcode exists
+  - Sets identifier-friendly brand
+  - Marks personalised products clearly in the name when needed
+{% endcomment %}
+
+{% if product %}
+  {% assign usaf_brand = product.vendor | default: shop.name | strip %}
+  {% assign usaf_is_personalised = false %}
+  {% assign usaf_type_l = product.type | downcase %}
+  {% assign usaf_title_l = product.title | downcase %}
+  {% assign usaf_tags_l = product.tags | join: ',' | downcase %}
+  {% if usaf_title_l contains 'personal' or usaf_title_l contains 'custom' or usaf_tags_l contains 'personal' or usaf_tags_l contains 'printlab' or usaf_tags_l contains 'custom' %}
+    {% assign usaf_is_personalised = true %}
+  {% endif %}
+
+  {% assign usaf_title = product.title | strip %}
+  {% if usaf_is_personalised %}
+    {% unless usaf_title_l contains 'personal' or usaf_title_l contains 'custom' %}
+      {% assign usaf_title = 'Personalised ' | append: usaf_title %}
+    {% endunless %}
+  {% endif %}
+  {% assign usaf_title = usaf_title | replace: ' (Copy)', '' | replace: '(Copy)', '' | strip %}
+
+  {% assign usaf_category = 'Apparel & Accessories' %}
+  {% if usaf_type_l contains 'cap' or usaf_type_l contains 'beanie' or usaf_type_l contains 'hat' %}
+    {% assign usaf_category = 'Apparel & Accessories > Clothing Accessories > Hats' %}
+  {% elsif usaf_type_l contains 't-shirt' or usaf_type_l contains 'polo' or usaf_type_l contains 'hoodie' or usaf_type_l contains 'sweat' %}
+    {% assign usaf_category = 'Apparel & Accessories > Clothing > Shirts & Tops' %}
+  {% elsif usaf_type_l contains 'jacket' or usaf_type_l contains 'fleece' or usaf_type_l contains 'gilet' %}
+    {% assign usaf_category = 'Apparel & Accessories > Clothing > Outerwear' %}
+  {% elsif usaf_type_l contains 'bag' or usaf_type_l contains 'tote' %}
+    {% assign usaf_category = 'Apparel & Accessories > Handbags, Wallets & Cases' %}
+  {% elsif usaf_type_l contains 'digital' %}
+    {% assign usaf_category = 'Media' %}
+  {% endif %}
+
+  <script type="application/ld+json" id="usaf-merchant-product-schema">
+  {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "@id": {{ request.origin | append: product.url | append: '#product' | json }},
+    "name": {{ usaf_title | json }},
+    "url": {{ request.origin | append: product.url | json }},
+    "description": {{ product.description | strip_html | truncate: 5000 | json }},
+    "brand": {
+      "@type": "Brand",
+      "name": {{ usaf_brand | json }}
+    },
+    "category": {{ usaf_category | json }},
+    "productID": {{ product.id | json }},
+    "image": [
+      {%- for image in product.images limit: 10 -%}
+        {{ image | image_url: width: 2048 | prepend: 'https:' | json }}{%- unless forloop.last -%},{%- endunless -%}
+      {%- endfor -%}
+    ],
+    "offers": [
+      {%- for variant in product.variants -%}
+        {%- assign usaf_price = variant.price | money_without_currency | replace: ',', '' | strip -%}
+        {
+          "@type": "Offer",
+          "@id": {{ request.origin | append: product.url | append: '?variant=' | append: variant.id | append: '#offer' | json }},
+          "url": {{ request.origin | append: product.url | append: '?variant=' | append: variant.id | json }},
+          "priceCurrency": {{ cart.currency.iso_code | default: shop.currency | json }},
+          "price": {{ usaf_price | json }},
+          "availability": "{% if variant.available %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}",
+          "itemCondition": "https://schema.org/NewCondition",
+          "sku": {{ variant.sku | default: variant.id | json }}
+          {%- if variant.barcode != blank -%}
+            ,"gtin": {{ variant.barcode | json }}
+          {%- endif -%}
+          {%- if variant.sku != blank -%}
+            ,"mpn": {{ variant.sku | json }}
+          {%- endif -%}
+          ,"seller": {
+            "@type": "Organization",
+            "name": {{ shop.name | json }}
+          }
+        }{%- unless forloop.last -%},{%- endunless -%}
+      {%- endfor -%}
+    ]
+  }
+  </script>
+{% endif %}
