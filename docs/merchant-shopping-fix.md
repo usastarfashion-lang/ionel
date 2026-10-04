@@ -54,20 +54,30 @@ In Merchant Center, open any remaining account/product issues and click **Reques
 - Add SKUs to the ~110 variants that are missing them
 - Keep digital downloads excluded from the Google sales channel
 
-## If you want me to finish it in admin for you
+## If you want the agent to finish Shopify for you
 
 Staff seats are full, so **do not** try Add staff.
 
-Instead create an API token (does not use a staff seat):
+Create an API token (does **not** use a staff seat), then paste it in chat:
 
 1. Shopify → **Settings → Apps and sales channels → Develop apps**
 2. **Allow custom app development** (if asked)
 3. **Create an app** → name it `Cursor Merchant Fix`
-4. **Configure Admin API scopes**: `read_products`, `write_products`, `read_product_listings`
-5. **Install app** → copy the **Admin API access token** (starts with `shpat_`)
-6. Paste that token here in chat
+4. **Configure Admin API scopes**: `read_products`, `write_products`
+5. **Install app** → reveal/copy the **Admin API access token** (`shpat_...`)
+6. Paste only that token in chat (not your Shopify password)
 
-With the token I can bulk-set custom flags / SKUs via API. Merchant Center feed rules still need step A in your Google account (or a Merchant invite).
+The agent will run:
+
+```bash
+export SHOPIFY_SHOP=4ec0cc-d5.myshopify.com
+export SHOPIFY_ADMIN_TOKEN='shpat_...'
+python3 scripts/apply_shopify_merchant_fixes.py
+```
+
+That sets Google `custom_product=true`, variant `condition=new`, and fills missing SKUs.
+
+Merchant Center **Identifier exists = no** feed rule still needs step A in your Google account (or invite the agent’s Google user).
 
 ## Regenerate the CSV anytime
 
