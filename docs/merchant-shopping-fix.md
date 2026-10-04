@@ -1,53 +1,46 @@
 # Fix Google Merchant / Shopping for USASTARFASHION
 
+**No staff invite needed.** Do these steps while logged in as the store owner (`usastarfashion@gmail.com`).
+
 Your Shopify store is already linked to Google (`MC-PS24C2TF30`). Most catalogue items are personalised apparel **without GTINs**, which is the usual reason Merchant Center limits or disapproves Shopping / free listings.
 
-## What was wrong
+## Fastest fix (about 5 minutes)
 
-From a live catalogue scan:
+### A) Google Merchant Center — feed rule (required)
 
-- ~1,380 products, nearly all personalised / Printlab-ready
-- Many variants had no GTIN/barcode in the feed Google expects
-- Some products still used duplicate handles/titles (`…-copy-copy`)
-- Digital downloads were mixed into the same catalogue Google Shopping reads
-- Storefront Product schema often exposed only one offer and no MPN/GTIN
+1. Open [merchants.google.com](https://merchants.google.com/) with the Google account linked to the store
+2. Go to **Products → Feeds**
+3. Open the Shopify feed (usually named **Content API** or similar)
+4. Open **Feed rules** → **Add rule**
+5. Attribute: **Identifier exists**
+6. Set value to: `no` (must be English `no` / `false`)
+7. Save, then wait for the feed to reprocess
+8. Check **Products → Needs attention** — missing-identifier issues should clear
 
-## Fix pack in this repo
+Optional stronger fix: also upload the supplemental CSV from this repo  
+`feeds/merchant_supplemental_feed.csv` under **Products → Supplemental feeds** (join on `id`).
 
-| Path | Purpose |
-| --- | --- |
-| `scripts/generate_merchant_supplemental_feed.py` | Builds a Merchant Center supplemental CSV from your live Shopify catalogue |
-| `feeds/merchant_supplemental_feed.csv` | Generated upload file (id, identifier_exists, brand, mpn, color, size, custom labels…) |
-| `shopify/snippets/usaf-merchant-product-schema.liquid` | Theme snippet so Google sees full variant offers + sku/mpn/gtin |
+### B) Shopify — mark custom products (required)
 
-## Do this in order
+1. In Shopify admin left sidebar (not Settings), open **Sales channels**
+2. Click **Google & YouTube**
+3. Open **Manage products** / product feed editor
+4. Set **Custom product = True** for personalised / Printlab items  
+   (filter by tag `personalised` or `printlab` if available, then bulk set)
+5. Save and let it sync
 
-### 1) Upload the supplemental feed
+### C) Request review
 
-1. Open [Google Merchant Center](https://merchants.google.com/)
-2. **Products → Supplemental feeds → Add supplemental feed**
-3. Upload `feeds/merchant_supplemental_feed.csv`
-4. Join key: `id` (format `shopify_GB_81835753803_<variantId>`)
-5. Wait for processing, then check **Products → Needs attention**
+In Merchant Center, open any remaining account/product issues and click **Request review**.
 
-Regenerate anytime:
+## Extra fixes (when you have time)
 
-```bash
-python3 scripts/generate_merchant_supplemental_feed.py
-```
+### Theme schema (helps Google read variants correctly)
 
-### 2) Mark personalised items as custom in Shopify
-
-1. Shopify admin → **Sales channels → Google & YouTube**
-2. Open product feed / manage products
-3. For Printlab / personalised products set **Custom product = True**
-4. Save and allow the Content API feed to sync
-
-### 3) Install the theme schema snippet
-
-1. Themes → Edit code → Snippets → add `usaf-merchant-product-schema`
-2. Paste `shopify/snippets/usaf-merchant-product-schema.liquid`
-3. Render it on product pages in `<head>`:
+1. Shopify → **Online Store → Themes → Edit code**
+2. Snippets → Add snippet `usaf-merchant-product-schema`
+3. Paste contents from `shopify/snippets/usaf-merchant-product-schema.liquid`
+4. In the theme `<head>` (often `layout/theme.liquid` or `snippets/meta-tags.liquid`) add:
 
 ```liquid
 {% if template.name == 'product' %}
@@ -55,22 +48,37 @@ python3 scripts/generate_merchant_supplemental_feed.py
 {% endif %}
 ```
 
-### 4) Clean catalogue quality issues
+### Catalogue cleanup
 
-- Rename products/handles that still contain `(Copy)` / `-copy-copy`
-- Exclude pure digital downloads from the Google sales channel (or keep them excluded via the generator’s default)
-- Ensure every sellable variant has a SKU (blank barcode is OK for custom goods when `identifier_exists=no`)
-- In Google Search Console, request indexing for `/` and key collection URLs if old titles/snippets still show
+- Rename the 2 products whose handles still contain `-copy`
+- Add SKUs to the ~110 variants that are missing them
+- Keep digital downloads excluded from the Google sales channel
 
-### 5) Request review
+## If you want me to finish it in admin for you
 
-After the supplemental feed is healthy and Shopify custom flags are saved, use Merchant Center **Request review** on account or product issues.
+Staff seats are full, so **do not** try Add staff.
 
-## Notes for personalised products
+Instead create an API token (does not use a staff seat):
 
-Google expects:
+1. Shopify → **Settings → Apps and sales channels → Develop apps**
+2. **Allow custom app development** (if asked)
+3. **Create an app** → name it `Cursor Merchant Fix`
+4. **Configure Admin API scopes**: `read_products`, `write_products`, `read_product_listings`
+5. **Install app** → copy the **Admin API access token** (starts with `shpat_`)
+6. Paste that token here in chat
 
-- “Personalised” / “Custom” near the start of the title when the offer is customised
+With the token I can bulk-set custom flags / SKUs via API. Merchant Center feed rules still need step A in your Google account (or a Merchant invite).
+
+## Regenerate the CSV anytime
+
+```bash
+python3 scripts/generate_merchant_supplemental_feed.py
+python3 scripts/validate_merchant_feed.py
+```
+
+## What Google expects for personalised products
+
+- “Personalised” / “Custom” near the start of the title when decorated
 - Final customer price (including decoration)
 - `identifier_exists = no` when there is no real GTIN
 - Accurate availability and landing-page match
