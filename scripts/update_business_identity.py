@@ -168,6 +168,10 @@ def update_policies() -> None:
         result = gql(mutation, {"shopPolicy": {"type": ptype, "body": body}})
         errs = result["shopPolicyUpdate"]["userErrors"]
         if errs:
+            msg = " ".join(e.get("message", "") for e in errs)
+            if "Automatic management" in msg:
+                log(f"Skipped {ptype}: Shopify automatic management is on")
+                continue
             die(f"{ptype} errors: {errs}")
         log(f"Updated policy {ptype}")
 
