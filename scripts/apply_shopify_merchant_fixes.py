@@ -22,13 +22,63 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional, Tuple
 
 SHOP = os.environ.get("SHOPIFY_SHOP", "4ec0cc-d5.myshopify.com").strip()
 TOKEN = os.environ.get("SHOPIFY_ADMIN_TOKEN", "").strip()
+CLIENT_ID = os.environ.get("SHOPIFY_CLIENT_ID", "").strip()
+CLIENT_SECRET = os.environ.get("SHOPIFY_CLIENT_SECRET", "").strip()
 API_VERSION = os.environ.get("SHOPIFY_API_VERSION", "2025-01").strip()
 DRY_RUN = os.environ.get("DRY_RUN", "").lower() in {"1", "true", "yes"}
+
+
+def request_client_credentials_token() -> str:
+    """Dev Dashboard apps: exchange client id/secret for a short-lived Admin token."""
+    body = urllib.parse.urlencode(
+        {
+            "grant_type": "client_credentials",
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        f"https://{SHOP}/admin/oauth/access_token",
+        data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=45) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as err:
+        detail = err.read().decode("utf-8", "replace")
+        die(f"Token exchange HTTP {err.code}: {detail}")
+    token = payload.get("access_token")
+    if not token:
+        die(f"No access_token in response: {payload}")
+    print(f"Got client-credentials token; scopes={payload.get('scope')}")
+    return token
+
+
+def ensure_token() -> str:
+    global TOKEN
+    if TOKEN:
+        return TOKEN
+    if CLIENT_ID and CLIENT_SECRET:
+        TOKEN = request_client_credentials_token()
+        return TOKEN
+    die(
+        "Missing Shopify credentials.\n"
+        "Dev Dashboard path:\n"
+        "  1) Settings → Apps → Develop apps → Build apps in Dev Dashboard\n"
+        "  2) Create app, set read_products + write_products, install on store\n"
+        "  3) Copy Client ID + Client secret\n"
+        "  4) export SHOPIFY_CLIENT_ID=... SHOPIFY_CLIENT_SECRET=...\n"
+        "Or set SHOPIFY_ADMIN_TOKEN if you already have an access token."
+    )
+    return ""
 
 PERSONAL_RE = re.compile(
     r"personalised|personalized|printlab|custom product|blank or personalised",
